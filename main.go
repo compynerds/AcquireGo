@@ -2,12 +2,21 @@ package main
 
 import (
 	_ "github.com/go-sql-driver/mysql"
-	"database/sql"
+	//"database/sql"
 	"fmt"
 	"net/http"
 	"io/ioutil"
 	 "github.com/gorilla/mux"
+
+	"net"
+	"bufio"
 )
+
+type User struct {
+	Username string `json:"username"`
+	Email string `json:"email"`
+	Password string `json:"password"`
+}
 
 func main() {
 
@@ -76,58 +85,84 @@ func checkErr(err error) {
 func createPlayer(response http.ResponseWriter, request *http.Request){
 	//extract data and put it in the sql queries.
 
-	//check to see if the user and email is unique
+	conn, err := net.Dial("tcp", "mauza.duckdns.org:8484")
+	if err != nil {
+		// handle error
+	}
+	fmt.Fprintf(conn, "GET / HTTP/1.0\r\n\r\n")//this sends the "GET / HTTP/1.0" to the java server
+
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	// ...
+	fmt.Println(status)
+
+
+
+	fmt.Println("above is what was printed from the request")
+
+	//get username
+
+	//get email
+
+	//get password
+
+	//check to see if it's valid
+
+	//if not exit
+
+	//if so continue
+
+
+	//db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
+	//checkErr(err)
 	//
-
-	db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
-	checkErr(err)
-
-	// insert
-	stmt, err := db.Prepare("INSERT players SET email=?,username=?,games_played=?, password=?")
-	checkErr(err)
-
-	res, err := stmt.Exec("example@example.com", "SeymourButts", "0", "secret")
-	checkErr(err)
-
-	id, err := res.LastInsertId()
-	checkErr(err)
-
-	fmt.Println(id)//this will print the id of the record that wou
+	//// insert
+	//stmt, err := db.Prepare("INSERT players SET email=?,username=?,games_played=?, password=?")
+	//checkErr(err)
+	//
+	//res, err := stmt.Exec("example@example.com", "SeymourButts", "0", "secret")
+	//checkErr(err)
+	//
+	//id, err := res.LastInsertId()
+	//checkErr(err)
+	//
+	//
+	//
+	//fmt.Println(id)//this will print the id of the record that wou
 	// update
-	stmt, err = db.Prepare("update players set updated_at=? where id=?")
-	checkErr(err)
-
-	res, err = stmt.Exec("2016-12-10", id) //update on players where uid = id returned from above
-	checkErr(err)
-
-	affect, err := res.RowsAffected()
-	checkErr(err)
-
-	fmt.Println(affect)
+	//stmt, err = db.Prepare("update players set updated_at=? where id=?")
+	//checkErr(err)
+	//
+	//res, err = stmt.Exec("2016-12-10", id) //update on players where uid = id returned from above
+	//checkErr(err)
+	//
+	//affect, err := res.RowsAffected()
+	//checkErr(err)
+	//
+	//fmt.Println(affect)
 
 	// query
-	rows, err := db.Query("SELECT * FROM players")
-	checkErr(err)
-
-	for rows.Next() {
-		var uid int
-		var username string
-		var email string
-		var created_at string
-		var updated_at string
-		var games_played string
-		var password string
-
-		err = rows.Scan(&uid, &username, &email, &created_at, &updated_at, &games_played, &password)
-		checkErr(err)
-		fmt.Println(uid)
-		fmt.Println(username)
-		fmt.Println(email)
-		fmt.Println(created_at)
-		fmt.Println(updated_at)
-		fmt.Println(games_played)
-		fmt.Println(password)
-	}
+	//rows, err := db.Query("SELECT * FROM players")
+	//checkErr(err)
+	//
+	//for rows.Next() {
+	//	var uid int
+	//	var username string
+	//	var email string
+	//	var created_at string
+	//	var updated_at string
+	//	var games_played string
+	//	var password string
+	//
+	//	err = rows.Scan(&uid, &username, &email, &created_at, &updated_at, &games_played, &password)
+	//	checkErr(err)
+	//	fmt.Println(uid)
+	//	fmt.Println(username)
+	//	fmt.Println(email)
+	//	fmt.Println(created_at)
+	//	fmt.Println(updated_at)
+	//	fmt.Println(games_played)
+	//	fmt.Println(password)
+	//}
 
 	// delete
 	//stmt, err = db.Prepare("delete from players where id=?")
@@ -135,13 +170,13 @@ func createPlayer(response http.ResponseWriter, request *http.Request){
 	//
 	//res, err = stmt.Exec(id)
 	//checkErr(err)
+	//
+	//affect, err = res.RowsAffected()
+	//checkErr(err)
+	//
+	//fmt.Println(affect)
 
-	affect, err = res.RowsAffected()
-	checkErr(err)
-
-	fmt.Println(affect)
-
-	db.Close()
+	//db.Close()
 }
 
 
@@ -149,8 +184,9 @@ func createPlayer(response http.ResponseWriter, request *http.Request){
  * This is the struct that will create the Player objects
  */
 type Player struct {
-	username, email, created_at, updated_at string
-	games_played int
+	Username string `json:"username"`
+	Email string `json:"email"`
+	Password string `json:"password"`
 }
 
 
@@ -180,4 +216,18 @@ func updateProfile(responseWriter http.ResponseWriter, request *http.Request){
 	//get request data
 	//update profile
 	//display updated profile
+}
+
+func connectToJava(response http.ResponseWriter, request *http.Request){
+	//this is how we connect to the java instance
+	conn, err := net.Dial("tcp", "mauza.duckdns.org:8484")
+	if err != nil {
+		// handle error
+	}
+	fmt.Fprintf(conn, "GET / HTTP/1.0\r\n\r\n")//this sends the "GET / HTTP/1.0" to the java server
+
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	// ...
+	fmt.Println(status)
+
 }
