@@ -12,7 +12,6 @@ import (
 	"log"
 	"encoding/json"
 	"time"
-
 )
 
 
@@ -21,6 +20,7 @@ func main() {
 	router := mux.NewRouter()
 	rootRouter := mux.NewRouter()
 	resourceRouter := mux.NewRouter()
+	gameRouter := mux.NewRouter()
 
 	router.HandleFunc("/user", registrationPage).Methods("GET")
 	router.HandleFunc("/user", createPlayer).Methods("POST")
@@ -28,8 +28,10 @@ func main() {
 	router.HandleFunc("/user", deleteUser).Methods("DELETE")
 	http.Handle("/user", router)
 
-	rootRouter.HandleFunc("/", redirect)
+	rootRouter.HandleFunc("/", loginFunc)
 	http.Handle("/",rootRouter)
+	gameRouter.HandleFunc("/gamePage", displayGame).Methods("GET")
+	http.Handle("/gamePage", gameRouter)
 
 	resourceRouter.HandleFunc("/resources", getResources).Methods("GET")
 	http.Handle("/resources",resourceRouter)
@@ -212,12 +214,11 @@ func deleteUser(response http.ResponseWriter, request *http.Request){
 
 	affect, err := res.RowsAffected()
 	checkErr(err)
-	fmt.Println(affect)
+	log.Println(affect)
 
 	db.Close()
 
-	//return
-	//then reroute to profile page
+	http.Redirect(response, request, "/", http.StatusSeeOther)
 }
 
 
@@ -253,10 +254,42 @@ func parseRequest(request *http.Request) (Player){
 }
 
 
-func checkConnectionDB(){
+func checkConnectionDB() (bool){
+	//this will ping the DB to make sure it's reachable
+	db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
+	checkErr(err)
+	defer db.Close()
+	err = db.Ping();
+	if err == nil{
+		return false;
+	}
+	return true
+}
 
+
+func displayGame(response http.ResponseWriter, request *http.Request){
+	path := "views" + request.URL.Path + ".html"
+	fmt.Println(string(path))
+	data, err := ioutil.ReadFile(string(path))
+	if(err == nil){
+		response.Write(data)
+	} else{
+		response.WriteHeader(404)
+		response.Write([]byte("404 - " + http.StatusText(404)))
+	}
 
 }
 
 
+func loginFunc(response http.ResponseWriter, request *http.Request){
+	path := "views/index.html"
+	fmt.Println(string(path))
+	data, err := ioutil.ReadFile(string(path))
+	if(err == nil){
+		response.Write(data)
+	} else{
+		response.WriteHeader(404)
+		response.Write([]byte("404 - " + http.StatusText(404)))
+	}
 
+}
