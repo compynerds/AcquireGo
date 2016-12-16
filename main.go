@@ -90,7 +90,7 @@ type Player struct {
  * This function will eventually get the info from the request and
  * persist it to the mysql database
  */
-func createPlayer(response http.ResponseWriter, request *http.Request){
+func createPlayer(response http.ResponseWriter, request *http.Request) {
 	//extract data and put it in the sql queries.
 
 	//get username, email, password
@@ -110,39 +110,25 @@ func createPlayer(response http.ResponseWriter, request *http.Request){
 
 	fmt.Println("above is what was printed from the request")
 
-	//check to see if it's valid
-	//rows, err := db.Prepare("SELECT * FROM players WHERE username=?")
-	//checkErr(err)
-	//defer rows.Close()
-	//
-	//row, errr := rows.Exec(user.Username)
-	//if err != nil{
-	//	panic(errr)
-	//}
+	//make a call to validateUnique
+	exists := validateUnique(user)
 
-	//do unique username and email check
-
-
-	//if(count > 0 || row == nil){
-	//	//if not exit
-	//	return "Player already exists"//exit with errror code/message
-	//}
-
+	if exists != true {
+		http.Redirect(response, request, "/invalidCreate", http.StatusBadRequest)
+	}
 	// insert
 	stmt, err := db.Prepare("INSERT players SET email=?,username=?,games_played=?, password=?, created_at=?, updated_at=?")
 	checkErr(err)
 
 	//encrypt the password
 
-	result , err := stmt.Exec(user.Username, user.Email, "0", "secret",current_time,current_time)
+	result, err := stmt.Exec(user.Username, user.Email, "0", "secret", current_time, current_time)
 	checkErr(err)
 
 	fmt.Println(result)
 
-	response.WriteHeader(201);
+	http.Redirect(response, request, "/", http.StatusCreated)
 
-//	return response;//this needs to be revised
-	//then reroute to profile page
 }
 
 
@@ -168,7 +154,7 @@ func registrationPage(responseWriter http.ResponseWriter, request *http.Request)
  * This will eventually be the function for updating the Player profile
  * this is currently on the wrong route
  */
-func updateProfile(responseWriter http.ResponseWriter, request *http.Request){
+func updateProfile(response http.ResponseWriter, request *http.Request){
 
 	var updatePlayer Player
 	updatePlayer = parseRequest(request)
@@ -192,8 +178,8 @@ func updateProfile(responseWriter http.ResponseWriter, request *http.Request){
 
 	fmt.Println(affect)
 
-	//return
-	//then reroute to profile page
+	http.Redirect(response, request, "/", http.StatusAccepted)
+
 }
 
 
@@ -218,7 +204,7 @@ func deleteUser(response http.ResponseWriter, request *http.Request){
 
 	db.Close()
 
-	http.Redirect(response, request, "/", http.StatusSeeOther)
+	http.Redirect(response, request, "/", http.StatusAccepted)
 }
 
 
@@ -293,3 +279,32 @@ func loginFunc(response http.ResponseWriter, request *http.Request){
 	}
 
 }
+
+
+func validateUnique(player Player) (bool){
+	db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
+	checkErr(err)
+	defer db.Close()
+	//check to see if it's valid
+	rows, err := db.Prepare("SELECT * FROM players WHERE username=?")
+	checkErr(err)
+	defer rows.Close()
+
+	row, errr := rows.Exec(player.Username)
+	if err != nil{
+		panic(errr)
+	}
+	log.Println(row)
+	//call the count method or something
+
+	//do unique username and email check
+
+	//if(count > 0 || row == nil){
+	//	//if not exit
+	//	return false
+	//}
+	return true
+}
+
+
+
