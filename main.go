@@ -2,26 +2,26 @@ package main
 
 import (
 	_ "github.com/go-sql-driver/mysql"
-	//"database/sql"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"io/ioutil"
-	 "github.com/gorilla/mux"
-
+	"github.com/gorilla/mux"
 	"net"
 	"bufio"
 	"log"
 	"encoding/json"
 	"time"
-	"database/sql"
 
 )
+
 
 type User struct {
 	Username string `json:"username"`
 	Email string `json:"email"`
 	Password string `json:"password"`
 }
+
 
 func main() {
 
@@ -31,7 +31,8 @@ func main() {
 
 	router.HandleFunc("/user", registrationPage).Methods("GET")
 	router.HandleFunc("/user", createPlayer).Methods("POST")
-	router.HandleFunc("/user", updateProfile).Methods("UPDATE")//this won't be implemented just yet
+	router.HandleFunc("/user", updateProfile).Methods("UPDATE")
+	router.HandleFunc("/user", deleteUser).Methods("DELETE")
 	http.Handle("/user", router)
 
 	rootRouter.HandleFunc("/", redirect)
@@ -146,6 +147,7 @@ func createPlayer(response http.ResponseWriter, request *http.Request){
 	response.WriteHeader(201);
 
 //	return response;//this needs to be revised
+	//then reroute to profile page
 }
 
 
@@ -196,8 +198,35 @@ func updateProfile(responseWriter http.ResponseWriter, request *http.Request){
 	fmt.Println(affect)
 
 	//return
-
+	//then reroute to profile page
 }
+
+
+func deleteUser(response http.ResponseWriter, request *http.Request){
+	var deletePlayer Player
+
+	deletePlayer = parseRequest(request)
+
+	db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
+	checkErr(err)
+
+	// delete
+	deleteStm, err := db.Prepare("delete from players where email=?")
+	checkErr(err)
+
+	res, err := deleteStm.Exec(deletePlayer.Email)
+	checkErr(err)
+
+	affect, err := res.RowsAffected()
+	checkErr(err)
+	fmt.Println(affect)
+
+	db.Close()
+
+	//return
+	//then reroute to profile page
+}
+
 
 func connectToJava(response http.ResponseWriter, request *http.Request){
 	//this is how we connect to the java instance
@@ -212,6 +241,7 @@ func connectToJava(response http.ResponseWriter, request *http.Request){
 	fmt.Println(status)
 
 }
+
 
 func parseRequest(request *http.Request) (Player){
 
@@ -228,3 +258,12 @@ func parseRequest(request *http.Request) (Player){
 
 	return parsePlayer
 }
+
+
+func checkConnectionDB(){
+
+
+}
+
+
+
