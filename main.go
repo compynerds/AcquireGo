@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"time"
 	"database/sql"
+
 )
 
 type User struct {
@@ -98,16 +99,9 @@ func createPlayer(response http.ResponseWriter, request *http.Request){
 
 	//get username, email, password
 
-	body, err := ioutil.ReadAll(request.Body)
-	if err != nil {
-	panic("panic")
-	}
-	//log.Println(string(body))
 	var user Player
-	err = json.Unmarshal(body, &user)
-	if err != nil {
-	panic("panic")
-	}
+
+	user = parseRequest(request)
 
 	log.Println(user.Username)
 	//fmt.Println(t.Username)
@@ -121,23 +115,22 @@ func createPlayer(response http.ResponseWriter, request *http.Request){
 	fmt.Println("above is what was printed from the request")
 
 	//check to see if it's valid
-	rows, err := db.Prepare("SELECT * FROM players WHERE username=?")
-	checkErr(err)
-	defer rows.Close()
+	//rows, err := db.Prepare("SELECT * FROM players WHERE username=?")
+	//checkErr(err)
+	//defer rows.Close()
+	//
+	//row, errr := rows.Exec(user.Username)
+	//if err != nil{
+	//	panic(errr)
+	//}
 
-	_, errr := rows.Exec(user.Username)
-	if err != nil{
-		panic(errr)
-	}
+	//do unique username and email check
 
-	//re-evaluate the username and email check
 
-	count := checkCount(rows)
-
-	if(count > 0 || rows == nil){
-		//if not exit
-		return "Player already exists"//exit with errror code/message
-	}
+	//if(count > 0 || row == nil){
+	//	//if not exit
+	//	return "Player already exists"//exit with errror code/message
+	//}
 
 	// insert
 	stmt, err := db.Prepare("INSERT players SET email=?,username=?,games_played=?, password=?, created_at=?, updated_at=?")
@@ -150,15 +143,9 @@ func createPlayer(response http.ResponseWriter, request *http.Request){
 
 	fmt.Println(result)
 
-}
+	response.WriteHeader(201);
 
-
-func checkCount(rows *sql.Rows) (count int) {
-	for rows.Next() {
-		err:= rows.Scan(&count)
-		checkErr(err)
-	}
-	return count
+//	return response;//this needs to be revised
 }
 
 
@@ -185,9 +172,31 @@ func registrationPage(responseWriter http.ResponseWriter, request *http.Request)
  * this is currently on the wrong route
  */
 func updateProfile(responseWriter http.ResponseWriter, request *http.Request){
-	//get request data
-	//update profile
-	//display updated profile
+
+	var updatePlayer Player
+	updatePlayer = parseRequest(request)
+	log.Println(updatePlayer.Username)
+
+	db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
+	checkErr(err)
+
+	// update
+	stmt, err := db.Prepare("update players set username=?, email=?, password, updated_at=? where email=?")
+	checkErr(err)
+
+	moment := time.Now()
+	current_time := moment.Format("2006-01-02T15:04:05")
+
+	res, err := stmt.Exec(updatePlayer.Email,updatePlayer.Username,updatePlayer.Password,current_time,updatePlayer.Email)
+	checkErr(err)
+
+	affect, err := res.RowsAffected()
+	checkErr(err)
+
+	fmt.Println(affect)
+
+	//return
+
 }
 
 func connectToJava(response http.ResponseWriter, request *http.Request){
@@ -202,4 +211,20 @@ func connectToJava(response http.ResponseWriter, request *http.Request){
 	// ...
 	fmt.Println(status)
 
+}
+
+func parseRequest(request *http.Request) (Player){
+
+	body, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		panic("panic")
+	}
+	//log.Println(string(body))
+	var parsePlayer Player
+	err = json.Unmarshal(body, &parsePlayer)
+	if err != nil {
+		panic("panic")
+	}
+
+	return parsePlayer
 }
