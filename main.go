@@ -12,6 +12,8 @@ import (
 	"log"
 	"encoding/json"
 	"time"
+	"crypto/sha256"
+	"io"
 )
 
 
@@ -21,6 +23,7 @@ func main() {
 	rootRouter := mux.NewRouter()
 	resourceRouter := mux.NewRouter()
 	gameRouter := mux.NewRouter()
+	gameResponse := mux.NewRouter()
 
 	router.HandleFunc("/user", registrationPage).Methods("GET")
 	router.HandleFunc("/user", createPlayer).Methods("POST")
@@ -30,23 +33,18 @@ func main() {
 
 	rootRouter.HandleFunc("/", loginFunc)
 	http.Handle("/",rootRouter)
+
 	gameRouter.HandleFunc("/gamePage", displayGame).Methods("GET")
 	http.Handle("/gamePage", gameRouter)
+
+	gameResponse.HandleFunc("/messages", getGameMessages).Methods("GET")
+	http.Handle("/messages", gameResponse)
 
 	resourceRouter.HandleFunc("/resources", getResources).Methods("GET")
 	http.Handle("/resources",resourceRouter)
 
 	http.ListenAndServe(":8000", nil)
 
-}
-
-
-/**
- * This will redirect the root '/' to '/registration'
- */
-func redirect(w http.ResponseWriter, r *http.Request) {
-
-	http.Redirect(w, r, "/user", 301)
 }
 
 
@@ -121,8 +119,9 @@ func createPlayer(response http.ResponseWriter, request *http.Request) {
 	checkErr(err)
 
 	//encrypt the password
+	cryptPass := encryptPassword(user.Password)//this needs to be salted like crazy
 
-	result, err := stmt.Exec(user.Username, user.Email, "0", "secret", current_time, current_time)
+	result, err := stmt.Exec(user.Username, user.Email, "0", cryptPass, current_time, current_time)
 	checkErr(err)
 
 	fmt.Println(result)
@@ -304,6 +303,23 @@ func validateUnique(player Player) (bool){
 	//	return false
 	//}
 	return true
+}
+
+
+func getGameMessages(response http.ResponseWriter, request *http.Request){
+	//pass the json to the endpoint for JS to grab and parse.
+	fmt.Println(encryptPassword("encrypt this bitch!"))//this is for testing not production
+}
+
+
+func encryptPassword(passwd string) ([]byte){
+	h := sha256.New()
+	io.WriteString(h, "His money is twice tainted: 'taint yours and 'taint mine.")
+	crypt := h.Sum(nil)
+	log.Println("Encrypted pass below")
+	log.Println( crypt)
+
+	return crypt
 }
 
 
