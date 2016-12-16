@@ -16,9 +16,11 @@ import (
 	"io"
 )
 
+var c net.Conn = connectToJava()
+
 
 func main() {
-
+	//c.Write([]byte("Connection Established"))
 	router := mux.NewRouter()
 	rootRouter := mux.NewRouter()
 	resourceRouter := mux.NewRouter()
@@ -207,17 +209,18 @@ func deleteUser(response http.ResponseWriter, request *http.Request){
 }
 
 
-func connectToJava(response http.ResponseWriter, request *http.Request){
+func connectToJava()(net.Conn){
 	//this is how we connect to the java instance
-	conn, err := net.Dial("tcp", "mauza.duckdns.org:8484")
+	conn, err := net.Dial("tcp", "localhost:8484")
 	if err != nil {
 		// handle error
 	}
-	fmt.Fprintf(conn, "GET / HTTP/1.0\r\n\r\n")//this sends the "GET / HTTP/1.0" to the java server
+	//fmt.Fprintf(conn, "GET / HTTP/1.0\r\n\r\n")//this sends the "GET / HTTP/1.0" to the java server
 
 	status, err := bufio.NewReader(conn).ReadString('\n')
 	// ...
 	fmt.Println(status)
+	return conn
 
 }
 
