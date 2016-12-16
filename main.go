@@ -12,6 +12,8 @@ import (
 	"bufio"
 	"log"
 	"encoding/json"
+	"time"
+	"database/sql"
 )
 
 type User struct {
@@ -26,10 +28,10 @@ func main() {
 	rootRouter := mux.NewRouter()
 	resourceRouter := mux.NewRouter()
 
-	router.HandleFunc("/registration", registrationPage).Methods("GET")
-	router.HandleFunc("/registration", createPlayer).Methods("POST")
-	router.HandleFunc("/registration", updateProfile).Methods("UPDATE")//this won't be implemented just yet
-	http.Handle("/registration", router)
+	router.HandleFunc("/user", registrationPage).Methods("GET")
+	router.HandleFunc("/user", createPlayer).Methods("POST")
+	router.HandleFunc("/user", updateProfile).Methods("UPDATE")//this won't be implemented just yet
+	http.Handle("/user", router)
 
 	rootRouter.HandleFunc("/", redirect)
 	http.Handle("/",rootRouter)
@@ -47,7 +49,7 @@ func main() {
  */
 func redirect(w http.ResponseWriter, r *http.Request) {
 
-	http.Redirect(w, r, "/registration", 301)
+	http.Redirect(w, r, "/user", 301)
 }
 
 
@@ -101,91 +103,62 @@ func createPlayer(response http.ResponseWriter, request *http.Request){
 	panic("panic")
 	}
 	//log.Println(string(body))
-	var t Player
-	err = json.Unmarshal(body, &t)
+	var user Player
+	err = json.Unmarshal(body, &user)
 	if err != nil {
 	panic("panic")
 	}
 
-	log.Println(t.Username)
-	fmt.Println(t.Username)
+	log.Println(user.Username)
+	//fmt.Println(t.Username)
 
+	moment := time.Now()
+	current_time := moment.Format("2006-01-02T15:04:05")
 
+	db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
+	checkErr(err)
 
 	fmt.Println("above is what was printed from the request")
 
 	//check to see if it's valid
+	rows, err := db.Prepare("SELECT * FROM players WHERE username=?")
+	checkErr(err)
+	defer rows.Close()
 
-	//if not exit
+	_, errr := rows.Exec(user.Username)
+	if err != nil{
+		panic(errr)
+	}
 
-	//if so continue
+	//re-evaluate the username and email check
+
+	count := checkCount(rows)
+
+	if(count > 0 || rows == nil){
+		//if not exit
+		return "Player already exists"//exit with errror code/message
+	}
+
+	// insert
+	stmt, err := db.Prepare("INSERT players SET email=?,username=?,games_played=?, password=?, created_at=?, updated_at=?")
+	checkErr(err)
+
+	//encrypt the password
+
+	result , err := stmt.Exec(user.Username, user.Email, "0", "secret",current_time,current_time)
+	checkErr(err)
+
+	fmt.Println(result)
+
+}
 
 
-	//db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
-	//checkErr(err)
-	//
-	//// insert
-	//stmt, err := db.Prepare("INSERT players SET email=?,username=?,games_played=?, password=?")
-	//checkErr(err)
-	//
-	//res, err := stmt.Exec("example@example.com", "SeymourButts", "0", "secret")
-	//checkErr(err)
-	//
-	//id, err := res.LastInsertId()
-	//checkErr(err)
-	//
-	//
-	//
-	//fmt.Println(id)//this will print the id of the record that wou
-	// update
-	//stmt, err = db.Prepare("update players set updated_at=? where id=?")
-	//checkErr(err)
-	//
-	//res, err = stmt.Exec("2016-12-10", id) //update on players where uid = id returned from above
-	//checkErr(err)
-	//
-	//affect, err := res.RowsAffected()
-	//checkErr(err)
-	//
-	//fmt.Println(affect)
-
-	// query
-	//rows, err := db.Query("SELECT * FROM players")
-	//checkErr(err)
-	//
-	//for rows.Next() {
-	//	var uid int
-	//	var username string
-	//	var email string
-	//	var created_at string
-	//	var updated_at string
-	//	var games_played string
-	//	var password string
-	//
-	//	err = rows.Scan(&uid, &username, &email, &created_at, &updated_at, &games_played, &password)
-	//	checkErr(err)
-	//	fmt.Println(uid)
-	//	fmt.Println(username)
-	//	fmt.Println(email)
-	//	fmt.Println(created_at)
-	//	fmt.Println(updated_at)
-	//	fmt.Println(games_played)
-	//	fmt.Println(password)
-	//}
-
-	// delete
-	//stmt, err = db.Prepare("delete from players where id=?")
-	//checkErr(err)
-	//
-	//res, err = stmt.Exec(id)
-	//checkErr(err)
-	//
-	//affect, err = res.RowsAffected()
-	//checkErr(err)
-	//
-	//fmt.Println(affect)
-
-	//db.Close()
+func checkCount(rows *sql.Rows) (count int) {
+	for rows.Next() {
+		err:= rows.Scan(&count)
+		checkErr(err)
+	}
+	return count
 }
 
 
