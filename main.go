@@ -10,6 +10,8 @@ import (
 
 	"net"
 	"bufio"
+	"log"
+	"encoding/json"
 )
 
 type User struct {
@@ -78,6 +80,13 @@ func checkErr(err error) {
 }
 
 
+type Player struct {
+	Username string
+	Email string
+	Password string
+}
+
+
 /**
  * This function will eventually get the info from the request and
  * persist it to the mysql database
@@ -85,25 +94,25 @@ func checkErr(err error) {
 func createPlayer(response http.ResponseWriter, request *http.Request){
 	//extract data and put it in the sql queries.
 
-	conn, err := net.Dial("tcp", "mauza.duckdns.org:8484")
-	if err != nil {
-		// handle error
-	}
-	fmt.Fprintf(conn, "GET / HTTP/1.0\r\n\r\n")//this sends the "GET / HTTP/1.0" to the java server
+	//get username, email, password
 
-	status, err := bufio.NewReader(conn).ReadString('\n')
-	// ...
-	fmt.Println(status)
+	body, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+	panic("panic")
+	}
+	//log.Println(string(body))
+	var t Player
+	err = json.Unmarshal(body, &t)
+	if err != nil {
+	panic("panic")
+	}
+
+	log.Println(t.Username)
+	fmt.Println(t.Username)
 
 
 
 	fmt.Println("above is what was printed from the request")
-
-	//get username
-
-	//get email
-
-	//get password
 
 	//check to see if it's valid
 
@@ -177,16 +186,6 @@ func createPlayer(response http.ResponseWriter, request *http.Request){
 	//fmt.Println(affect)
 
 	//db.Close()
-}
-
-
-/**
- * This is the struct that will create the Player objects
- */
-type Player struct {
-	Username string `json:"username"`
-	Email string `json:"email"`
-	Password string `json:"password"`
 }
 
 
