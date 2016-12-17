@@ -15,10 +15,10 @@ import (
 	"crypto/sha256"
 	"io"
 	//"strings"
-	"bufio"
+	"os"
 )
 
-var c net.Conn
+var c net.Conn = connectToJava()
 
 func main() {
 	//c.Write([]byte("Connection Established"))
@@ -27,6 +27,7 @@ func main() {
 	resourceRouter := mux.NewRouter()
 	gameRouter := mux.NewRouter()
 	gameResponse := mux.NewRouter()
+	initRouter := mux.NewRouter()
 
 	router.HandleFunc("/user", registrationPage).Methods("GET")
 	router.HandleFunc("/user", createPlayer).Methods("POST")
@@ -40,6 +41,9 @@ func main() {
 	gameRouter.HandleFunc("/game", displayGame).Methods("GET")
 	gameRouter.HandleFunc("/game", communicate).Methods("POST")
 	http.Handle("/game", gameRouter)
+
+	initRouter.HandleFunc("/initgame", initGame).Methods("POST")
+	http.Handle("/initgame", initRouter)
 
 	gameResponse.HandleFunc("/messages", getGameMessages).Methods("GET")
 	http.Handle("/messages", gameResponse)
@@ -291,20 +295,34 @@ func displayGame(response http.ResponseWriter, request *http.Request){
 }
 
 func communicate(response http.ResponseWriter, request *http.Request){
-	request.ParseForm()
 
+	request.ParseForm()
 	message := request.Form["message"][0]
 	fmt.Println(message)
-	gameMessage := message
+	//Write message to the game engine
 	c.Write([]byte(message + "\n"))
-	message, err := bufio.NewReader(c).ReadString('\n')
-	gameMessage, err = ioutil.ReadAll(c)
-	if err != nil {
-		// handle error
+	log.Println("Message sent")
+	//Read back response from engine.
+	m := make([]byte, 1024);
+	_, error := c.Read(m);
+	if error != nil {
+		fmt.Printf("Cannot read: %s\n", error);
+		os.Exit(1);
 	}
-	fmt.Println(gameMessage)
 
-	response.Write([]byte(gameMessage))
+	response.Write(m)
+}
+
+
+func initGame(response http.ResponseWriter, request *http.Request){
+	m := make([]byte, 1024);
+	_, error := c.Read(m);
+	if error != nil {
+		fmt.Printf("Cannot read: %s\n", error);
+		os.Exit(1);
+	}
+
+	response.Write(m)
 }
 
 
