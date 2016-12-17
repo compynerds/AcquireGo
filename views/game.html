@@ -52,6 +52,9 @@
 <script type="text/javascript">
     // jQuery Document
     $(document).ready(function(){
+        $.post("initgame", "", function(data, status){
+            $("#gametext").text(data)
+        });
         $("#submitmsg").click(function(){
             var clientmsg = $("#usermsg").val().toString();
             //$.ajax({
