@@ -15,10 +15,10 @@ import (
 	"crypto/sha256"
 	"io"
 	//"strings"
-	"os"
+	"bufio"
 )
 
-var c net.Conn = connectToJava()
+var c net.Conn
 
 func main() {
 	//c.Write([]byte("Connection Established"))
@@ -30,7 +30,7 @@ func main() {
 
 	router.HandleFunc("/user", registrationPage).Methods("GET")
 	router.HandleFunc("/user", createPlayer).Methods("POST")
-	router.HandleFunc("/user", updateProfile).Methods("UPDATE")
+	router.HandleFunc("/user", updateProfile).Methods("PUT")
 	router.HandleFunc("/user", deleteUser).Methods("DELETE")
 	http.Handle("/user", router)
 
@@ -40,9 +40,6 @@ func main() {
 	gameRouter.HandleFunc("/game", displayGame).Methods("GET")
 	gameRouter.HandleFunc("/game", communicate).Methods("POST")
 	http.Handle("/game", gameRouter)
-
-	gameRouter.HandleFunc("/initgame", initGame).Methods("POST")
-	http.Handle("/initgame", gameRouter)
 
 	gameResponse.HandleFunc("/messages", getGameMessages).Methods("GET")
 	http.Handle("/messages", gameResponse)
@@ -79,7 +76,7 @@ func getResources(response http.ResponseWriter, request *http.Request){
  */
 func checkErr(err error) {
 	if err != nil {
-		panic(err)
+		log.Println("check error issue");
 	}
 }
 
@@ -110,26 +107,35 @@ func createPlayer(response http.ResponseWriter, request *http.Request) {
 	moment := time.Now()
 	current_time := moment.Format("2006-01-02T15:04:05")
 
-	db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
-	checkErr(err)
+	db, err := sql.Open("mysql", "root:one@/AquireGo?charset=utf8")//dsn info here.
+	if err != nil{
+		log.Println("cannot connect to DB")
+	}
+
+	defer db.Close()
 
 	fmt.Println("above is what was printed from the request")
 
 	//make a call to validateUnique
-	exists := validateUnique(user)
+	//exists := validateUnique(user)
 
-	if exists != true {
-		http.Redirect(response, request, "/invalidCreate", http.StatusBadRequest)
-	}
+	//if exists != true {
+	//	http.Redirect(response, request, "/invalidCreate", http.StatusBadRequest)
+	//}
 	// insert
 	stmt, err := db.Prepare("INSERT players SET email=?,username=?,games_played=?, password=?, created_at=?, updated_at=?")
-	checkErr(err)
+	if err != nil{
+		log.Println("database unavailable");
+	}//error here
 
+	//TODO: the encrypt isn't working properly it needs to be fixed
 	//encrypt the password
-	cryptPass := encryptPassword(user.Password)//this needs to be salted like crazy
+	//cryptPass := encryptPassword(user.Password)//this needs to be salted like crazy
 
-	result, err := stmt.Exec(user.Username, user.Email, "0", cryptPass, current_time, current_time)
-	checkErr(err)
+	result, err := stmt.Exec(user.Username, user.Email, 0, user.Password, current_time, current_time)
+	if err != nil{
+		log.Println("the execute");
+	}
 
 	fmt.Println(result)
 
@@ -166,22 +172,29 @@ func updateProfile(response http.ResponseWriter, request *http.Request){
 	updatePlayer = parseRequest(request)
 	log.Println(updatePlayer.Username)
 
-	db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
-	checkErr(err)
+	db, err := sql.Open("mysql", "root:one@/AquireGo?charset=utf8")//dsn info here. local instance
+	if err != nil{
+		log.Println("cannot connect to DB for update")
+	}
+
+	defer db.Close()
 
 	// update
-	stmt, err := db.Prepare("update players set username=?, email=?, password, updated_at=? where email=?")
-	checkErr(err)
-
+	stmt, err := db.Prepare("UPDATE players SET username=?, email=?, password=?, updated_at=? WHERE id=?")
+	if err != nil{
+		log.Println("update prepare issue")
+	}
 	moment := time.Now()
 	current_time := moment.Format("2006-01-02T15:04:05")
 
-	res, err := stmt.Exec(updatePlayer.Email,updatePlayer.Username,updatePlayer.Password,current_time,updatePlayer.Email)
-	checkErr(err)
-
+	res, err := stmt.Exec(updatePlayer.Email,updatePlayer.Username,updatePlayer.Password,current_time,4)//make the id dynamic
+	if err != nil{
+		log.Println("execute update issue")
+	}
 	affect, err := res.RowsAffected()
-	checkErr(err)
-
+	if err != nil{
+		log.Println("rows affected error")
+	}
 	fmt.Println(affect)
 
 	http.Redirect(response, request, "/", http.StatusAccepted)
@@ -190,22 +203,26 @@ func updateProfile(response http.ResponseWriter, request *http.Request){
 
 
 func deleteUser(response http.ResponseWriter, request *http.Request){
-	var deletePlayer Player
 
-	deletePlayer = parseRequest(request)
-
-	db, err := sql.Open("mysql", "master:12345678@tcp(mauza.duckdns.org:3306)/AquireGo?charset=utf8")//dsn info here.
-	checkErr(err)
+	db, err := sql.Open("mysql", "root:one@/AquireGo?charset=utf8")//dsn info here. local instance
+	if err != nil{
+		log.Println("cannot connect to DB for update")
+	}
 
 	// delete
-	deleteStm, err := db.Prepare("delete from players where email=?")
-	checkErr(err)
+	deleteStm, err := db.Prepare("delete from players where id=?")
+	if err != nil{
+		log.Println("prepare error")
+	}
 
-	res, err := deleteStm.Exec(deletePlayer.Email)
-	checkErr(err)
-
+	res, err := deleteStm.Exec(4)//make this id dynamic
+	if err != nil{
+		log.Println("execute error")
+	}
 	affect, err := res.RowsAffected()
-	checkErr(err)
+	if err != nil{
+		log.Println("affected error")
+	}
 	log.Println(affect)
 
 	db.Close()
@@ -234,13 +251,13 @@ func parseRequest(request *http.Request) (Player){
 
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		panic("panic")
+		log.Println("parse error occuring")
 	}
 	//log.Println(string(body))
 	var parsePlayer Player
 	err = json.Unmarshal(body, &parsePlayer)
 	if err != nil {
-		panic("panic")
+		log.Println("parse error 2")
 	}
 
 	return parsePlayer
@@ -274,35 +291,22 @@ func displayGame(response http.ResponseWriter, request *http.Request){
 }
 
 func communicate(response http.ResponseWriter, request *http.Request){
-
 	request.ParseForm()
+
 	message := request.Form["message"][0]
 	fmt.Println(message)
-	//Write message to the game engine
+	gameMessage := message
 	c.Write([]byte(message + "\n"))
-	log.Println("Message sent")
-	//Read back response from engine.
-	m := make([]byte, 1024);
-	_, error := c.Read(m);
-	if error != nil {
-		fmt.Printf("Cannot read: %s\n", error);
-		os.Exit(1);
+	message, err := bufio.NewReader(c).ReadString('\n')
+	gameMessage, err = ioutil.ReadAll(c)
+	if err != nil {
+		// handle error
 	}
+	fmt.Println(gameMessage)
 
-	response.Write(m)
+	response.Write([]byte(gameMessage))
 }
 
-
-func initGame(response http.ResponseWriter, request *http.Request){
-	m := make([]byte, 1024);
-	_, error := c.Read(m);
-	if error != nil {
-		fmt.Printf("Cannot read: %s\n", error);
-		os.Exit(1);
-	}
-
-	response.Write(m)
-}
 
 func loginFunc(response http.ResponseWriter, request *http.Request){
 	path := "views/index.html"
@@ -346,7 +350,7 @@ func validateUnique(player Player) (bool){
 
 func getGameMessages(response http.ResponseWriter, request *http.Request){
 	//pass the json to the endpoint for JS to grab and parse.
-	fmt.Println(encryptPassword("encrypt this bitch!"))//this is for testing not production
+	fmt.Println(encryptPassword("encrypt this!"))//this is for testing not production
 }
 
 
