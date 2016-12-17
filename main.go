@@ -8,16 +8,17 @@ import (
 	"io/ioutil"
 	"github.com/gorilla/mux"
 	"net"
-	"bufio"
+	//"bufio"
 	"log"
 	"encoding/json"
 	"time"
 	"crypto/sha256"
 	"io"
+	//"strings"
+	"bufio"
 )
 
-var c net.Conn = connectToJava()
-
+var c net.Conn
 
 func main() {
 	//c.Write([]byte("Connection Established"))
@@ -36,8 +37,9 @@ func main() {
 	rootRouter.HandleFunc("/", loginFunc)
 	http.Handle("/",rootRouter)
 
-	gameRouter.HandleFunc("/gamePage", displayGame).Methods("GET")
-	http.Handle("/gamePage", gameRouter)
+	gameRouter.HandleFunc("/game", displayGame).Methods("GET")
+	gameRouter.HandleFunc("/game", communicate).Methods("POST")
+	http.Handle("/game", gameRouter)
 
 	gameResponse.HandleFunc("/messages", getGameMessages).Methods("GET")
 	http.Handle("/messages", gameResponse)
@@ -217,9 +219,9 @@ func connectToJava()(net.Conn){
 	}
 	//fmt.Fprintf(conn, "GET / HTTP/1.0\r\n\r\n")//this sends the "GET / HTTP/1.0" to the java server
 
-	status, err := bufio.NewReader(conn).ReadString('\n')
+	//status, err := bufio.NewReader(conn).ReadString('\n')
 	// ...
-	fmt.Println(status)
+	//fmt.Println(status)
 	return conn
 
 }
@@ -266,6 +268,23 @@ func displayGame(response http.ResponseWriter, request *http.Request){
 		response.Write([]byte("404 - " + http.StatusText(404)))
 	}
 
+}
+
+func communicate(response http.ResponseWriter, request *http.Request){
+	request.ParseForm()
+
+	message := request.Form["message"][0]
+	fmt.Println(message)
+	//gameMessage := message
+	c.Write([]byte(message + "\n"))
+	message, err := bufio.NewReader(c).ReadString('\n')
+	gameMessage, err := ioutil.ReadAll(c)
+	if err != nil {
+		// handle error
+	}
+	fmt.Println(gameMessage)
+
+	response.Write([]byte(gameMessage))
 }
 
 
